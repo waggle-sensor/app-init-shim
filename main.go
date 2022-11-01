@@ -54,15 +54,13 @@ func main() {
 		}
 	}
 
-	//
+	// Now, since we're able to add a little more logic than in the current init container, we can
+	// do things like look up additional node labels and metadata for tagging.
 	node, err := clientset.CoreV1().Nodes().Get(ctx, meta["host"], v1.GetOptions{})
 	if err != nil {
 		log.Fatalf("failed to get node: %s", err)
 	}
 
-	// Now, since we're able to add a little more logic than in the current init container, we can
-	// do things like look up additional node labels and metadata for tagging.
-	//
 	// NOTE(sean) I think zone may actually be used as meta for some sys metrics. may need to choose a different name.
 	if zone, ok := node.ObjectMeta.Labels["zone"]; ok {
 		meta["zone"] = zone
