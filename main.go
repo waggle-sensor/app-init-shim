@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/go-redis/redis/v9"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -35,6 +38,11 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
+
+	appID := os.Getenv("WAGGLE_APP_ID")
+	if appID != "" {
+		log.Fatalf("WAGGLE_APP_ID is required.")
+	}
 
 	meta := map[string]string{}
 
@@ -67,6 +75,19 @@ func main() {
 	}
 
 	log.Printf("meta: %v", meta)
-	// TODO use redis client to set data in the same way its being done now
+
+	// set meta in redis meta cache
 	// ref: https://github.com/waggle-sensor/edge-scheduler/blob/d6dc256b6777fdefc94ee8c45a403d075ef194ae/pkg/nodescheduler/resourcemanager.go#L481
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "wes-app-meta-cache:6379",
+	})
+
+	b, err := json.Marshal(meta)
+	if err != nil {
+		log.Fatalf("failed to create app meta json: %s", err)
+	}
+
+	if err := rdb.Set(ctx, fmt.Sprintf("app-meta.%s", appID), string(b), 0); err != nil {
+		log.Fatalf("failed to set app meta cache data: %s", err)
+	}
 }
